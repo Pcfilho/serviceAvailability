@@ -1,56 +1,43 @@
-from scipy.stats import binom
-import pandas as pd
-import matplotlib.pyplot as plt
+from scipy.special import binom
 
-# Parâmetros para o caso sem replicação (n = k = 1)
-n_base = 1
-k_base = 1
-p_base = 0.5
-availability_no_replication = binom.cdf(k_base-1, n_base, p_base)
+# Função para calcular a disponibilidade do serviço
+def availability(n, k, p):
+    if k == 1:
+        return 1 - (1 - p) ** n
+    elif k == n:
+        return p ** n
+    else:
+        return sum(binom(n, x) * p ** x * (1 - p) ** (n - x) for x in range(k, n + 1))
 
-# Valores específicos para n, k, e p para comparação
-params = [
-    {'n': 2, 'k': 1, 'p': 0.5},
-    {'n': 2, 'k': 2, 'p': 0.5},
-    {'n': 3, 'k': 1, 'p': 0.5},
-    {'n': 3, 'k': 2, 'p': 0.5},
-    {'n': 3, 'k': 3, 'p': 0.5}
-]
+# Parâmetros para a simulação
+n_values = [1, 2, 3, 4, 5]
+k_values = [1, 2, 3, 4, 5]
+p_values = [0.5, 0.7, 0.9]
 
-# Lista para armazenar os resultados
-results = []
+# Criar um DataFrame para armazenar os resultados
+results = pd.DataFrame(columns=["n", "k", "p", "availability"])
 
-# Calcular disponibilidade para cada conjunto de parâmetros
-for param in params:
-    n = param['n']
-    k = param['k']
-    p = param['p']
-    
-    # CDF da binomial é a probabilidade de k ou menos sucessos, então para k ou mais sucessos usamos 1 - cdf(k-1)
-    availability = 1 - binom.cdf(k-1, n, p)
-    results.append({
-        'n': n,
-        'k': k,
-        'p': p,
-        'availability': availability,
-        'improvement': availability / availability_no_replication
-    })
+# Calcular a disponibilidade para diferentes valores de n, k e p
+for n in n_values:
+    for k in range(1, n+1):
+        for p in p_values:
+            results = results.append({"n": n, "k": k, "p": p, "availability": availability(n, k, p)}, ignore_index=True)
 
-# Convertendo os resultados em um DataFrame do pandas para facilitar a manipulação e visualização
-df = pd.DataFrame(results)
+# Mostrar os resultados em uma tabela
+print(results)
 
-# Plotando os resultados
-plt.figure(figsize=(10, 6))
-
-# Plot para cada conjunto de parâmetros
-for index, row in df.iterrows():
-    plt.bar(f'n={row["n"]}, k={row["k"]}', row['availability'], label=f'p={row["p"]}')
-
-plt.axhline(y=availability_no_replication, color='r', linestyle='--', label='No Replication (n=k=1)')
-
-plt.xlabel('Configurations (n, k)')
-plt.ylabel('Availability')
-plt.title('Service Availability for Different Values of n, k, and p')
-plt.legend()
-plt.tight_layout()
-plt.show()
+# Visualizar os resultados em gráficos com cores diferentes para cada linha de k
+for p in p_values:
+    plt.figure(figsize=(10, 6))
+    colors = ['blue', 'green', 'red', 'purple', 'orange']
+    for i, k in enumerate(k_values):
+        # Filtrar os resultados para cada valor de p e k
+        filtered_results = results[(results['p'] == p) & (results['k'] == k)]
+        if not filtered_results.empty:
+            plt.plot(filtered_results['n'], filtered_results['availability'], label=f"k={k}", color=colors[i % len(colors)])
+    plt.title(f"Disponibilidade do Serviço com p={p}")
+    plt.xlabel("Número de Servidores (n)")
+    plt.ylabel("Disponibilidade")
+    plt.legend()
+    plt.grid(True)
+    plt.show()
